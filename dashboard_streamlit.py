@@ -163,19 +163,21 @@ st.sidebar.title("📊 Menu Dashboard")
 page = st.sidebar.radio(
     "Pilih Halaman:",
     [
-        "Gambaran Umum",
-        "Visualisasi EDA",
-        "Segmentasi K-Means",
-        "Klasifikasi",
+        "Halaman Utama",
+        "Statistik Dataset",
+        "Hasil Clustering",
+        "Hasil Logistic Regression",
+        "Hasil Naïve Bayes",
+        "Perbandingan Model",
         "Prediksi Interaktif",
     ],
     label_visibility="collapsed",
 )
 
 # ══════════════════════════════════════════════
-# HALAMAN 1 — Gambaran Umum Dataset
+# HALAMAN 1 — Halaman Utama
 # ══════════════════════════════════════════════
-if page == "Gambaran Umum":
+if page == "Halaman Utama":
     st.title("Gambaran Umum Dataset")
     st.markdown(
         """
@@ -208,10 +210,10 @@ if page == "Gambaran Umum":
     st.dataframe(desc, use_container_width=True)
 
 # ══════════════════════════════════════════════
-# HALAMAN 2 — Visualisasi EDA
+# HALAMAN 2 — Statistik Dataset
 # ══════════════════════════════════════════════
-elif page == "Visualisasi EDA":
-    st.title("Visualisasi Exploratory Data Analysis")
+elif page == "Statistik Dataset":
+    st.title("Statistik Dataset (EDA)")
 
     # --- Distribusi Target ---
     st.subheader("Distribusi Status Depresi")
@@ -264,10 +266,10 @@ elif page == "Visualisasi EDA":
     st.pyplot(fig3)
 
 # ══════════════════════════════════════════════
-# HALAMAN 3 — Segmentasi K‑Means
+# HALAMAN 3 — Hasil Clustering
 # ══════════════════════════════════════════════
-elif page == "Segmentasi K-Means":
-    st.title("Segmentasi K-Means")
+elif page == "Hasil Clustering":
+    st.title("Hasil Clustering (K-Means)")
 
     # --- Elbow ---
     st.subheader("Elbow Method")
@@ -331,96 +333,91 @@ elif page == "Segmentasi K-Means":
     st.dataframe(cluster_profile, use_container_width=True)
 
 # ══════════════════════════════════════════════
-# HALAMAN 4 — Klasifikasi
+# HALAMAN 4, 5, 6 — Klasifikasi & Perbandingan
 # ══════════════════════════════════════════════
-elif page == "Klasifikasi":
-    st.title("Klasifikasi: Logistic Regression vs Naïve Bayes")
-
-    # --- Split (copy agar tidak read-only dari cache) ---
+elif page in ["Hasil Logistic Regression", "Hasil Naïve Bayes", "Perbandingan Model"]:
+    
+    # --- Split & Train Model Global ---
     _X = np.array(X_scaled, copy=True)
     _y = np.array(y, copy=True)
     X_train, X_test, y_train, y_test = train_test_split(
         _X, _y, test_size=0.2, random_state=RANDOM_STATE, stratify=_y
     )
 
-    # --- Logistic Regression ---
     logreg = LogisticRegression(max_iter=1000, random_state=RANDOM_STATE)
     logreg.fit(X_train, y_train)
     pred_lr = logreg.predict(X_test)
     proba_lr = logreg.predict_proba(X_test)[:, 1]
 
-    # --- Naïve Bayes ---
     nb = GaussianNB()
     nb.fit(X_train, y_train)
     pred_nb = nb.predict(X_test)
     proba_nb = nb.predict_proba(X_test)[:, 1]
 
-    # Helper metric
-    def metric_row(name, y_true, y_pred, y_proba):
-        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-
-        return {
-            "Model": name,
-            "Accuracy": round(accuracy_score(y_true, y_pred), 4),
-            "Precision": round(precision_score(y_true, y_pred, zero_division=0), 4),
-            "Recall": round(recall_score(y_true, y_pred, zero_division=0), 4),
-            "F1-Score": round(f1_score(y_true, y_pred, zero_division=0), 4),
-            "ROC-AUC": round(roc_auc_score(y_true, y_proba), 4),
-        }
-
-    eval_lr = metric_row("Logistic Regression", y_test, pred_lr, proba_lr)
-    eval_nb = metric_row("Naïve Bayes", y_test, pred_nb, proba_nb)
-    comparison = pd.DataFrame([eval_lr, eval_nb]).set_index("Model")
-
-    st.subheader("Tabel Perbandingan Model")
-    st.dataframe(comparison, use_container_width=True)
-
-    best = comparison.sort_values(["F1-Score", "ROC-AUC"], ascending=False).index[0]
-    st.success(
-        f"**Model terbaik:** {best} "
-        f"(F1-Score = {comparison.loc[best, 'F1-Score']}, "
-        f"ROC-AUC = {comparison.loc[best, 'ROC-AUC']})"
-    )
-
-    # --- Confusion Matrix ---
-    st.subheader("Confusion Matrix")
-    col_lr, col_nb = st.columns(2)
-
-    with col_lr:
-        st.markdown("**Logistic Regression**")
-        fig_cm1, ax_cm1 = plt.subplots(figsize=(4, 3))
+    # --- HALAMAN 4: Hasil Logistic Regression ---
+    if page == "Hasil Logistic Regression":
+        st.title("Hasil Logistic Regression")
+        
+        st.subheader("Confusion Matrix")
+        fig_cm1, ax_cm1 = plt.subplots(figsize=(5, 4))
         ConfusionMatrixDisplay.from_predictions(y_test, pred_lr, ax=ax_cm1, cmap="Blues")
-        ax_cm1.set_title("Logistic Regression")
         st.pyplot(fig_cm1)
-
-    with col_nb:
-        st.markdown("**Naïve Bayes**")
-        fig_cm2, ax_cm2 = plt.subplots(figsize=(4, 3))
-        ConfusionMatrixDisplay.from_predictions(y_test, pred_nb, ax=ax_cm2, cmap="Oranges")
-        ax_cm2.set_title("Naïve Bayes")
-        st.pyplot(fig_cm2)
-
-    # --- ROC Curve ---
-    st.subheader("ROC Curve")
-    fig_roc, ax_roc = plt.subplots(figsize=(7, 5))
-    for name, proba in [("Logistic Regression", proba_lr), ("Naïve Bayes", proba_nb)]:
-        fpr, tpr, _ = roc_curve(y_test, proba)
-        auc_val = roc_auc_score(y_test, proba)
-        ax_roc.plot(fpr, tpr, label=f"{name} (AUC={auc_val:.4f})")
-    ax_roc.plot([0, 1], [0, 1], "k--", alpha=0.5)
-    ax_roc.set_xlabel("False Positive Rate")
-    ax_roc.set_ylabel("True Positive Rate")
-    ax_roc.set_title("ROC Curve")
-    ax_roc.legend()
-    st.pyplot(fig_roc)
-
-    # --- Classification Report ---
-    st.subheader("Classification Report")
-    tab1, tab2 = st.tabs(["Logistic Regression", "Naïve Bayes"])
-    with tab1:
+        
+        st.subheader("Classification Report")
         st.text(classification_report(y_test, pred_lr, zero_division=0))
-    with tab2:
+
+    # --- HALAMAN 5: Hasil Naïve Bayes ---
+    elif page == "Hasil Naïve Bayes":
+        st.title("Hasil Naïve Bayes")
+        
+        st.subheader("Confusion Matrix")
+        fig_cm2, ax_cm2 = plt.subplots(figsize=(5, 4))
+        ConfusionMatrixDisplay.from_predictions(y_test, pred_nb, ax=ax_cm2, cmap="Oranges")
+        st.pyplot(fig_cm2)
+        
+        st.subheader("Classification Report")
         st.text(classification_report(y_test, pred_nb, zero_division=0))
+
+    # --- HALAMAN 6: Perbandingan Model ---
+    elif page == "Perbandingan Model":
+        st.title("Perbandingan Model")
+        
+        def metric_row(name, y_true, y_pred, y_proba):
+            from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+            return {
+                "Model": name,
+                "Accuracy": round(accuracy_score(y_true, y_pred), 4),
+                "Precision": round(precision_score(y_true, y_pred, zero_division=0), 4),
+                "Recall": round(recall_score(y_true, y_pred, zero_division=0), 4),
+                "F1-Score": round(f1_score(y_true, y_pred, zero_division=0), 4),
+                "ROC-AUC": round(roc_auc_score(y_true, y_proba), 4),
+            }
+
+        eval_lr = metric_row("Logistic Regression", y_test, pred_lr, proba_lr)
+        eval_nb = metric_row("Naïve Bayes", y_test, pred_nb, proba_nb)
+        comparison = pd.DataFrame([eval_lr, eval_nb]).set_index("Model")
+
+        st.subheader("Tabel Perbandingan Model")
+        st.dataframe(comparison, use_container_width=True)
+
+        best = comparison.sort_values(["F1-Score", "ROC-AUC"], ascending=False).index[0]
+        st.success(
+            f"**Model terbaik:** {best} "
+            f"(F1-Score = {comparison.loc[best, 'F1-Score']}, "
+            f"ROC-AUC = {comparison.loc[best, 'ROC-AUC']})"
+        )
+
+        st.subheader("ROC Curve")
+        fig_roc, ax_roc = plt.subplots(figsize=(6, 4.5))
+        for name, proba in [("Logistic Regression", proba_lr), ("Naïve Bayes", proba_nb)]:
+            fpr, tpr, _ = roc_curve(y_test, proba)
+            auc_val = roc_auc_score(y_test, proba)
+            ax_roc.plot(fpr, tpr, label=f"{name} (AUC={auc_val:.4f})")
+        ax_roc.plot([0, 1], [0, 1], "k--", alpha=0.5)
+        ax_roc.set_xlabel("False Positive Rate")
+        ax_roc.set_ylabel("True Positive Rate")
+        ax_roc.legend()
+        st.pyplot(fig_roc)
 
 # ══════════════════════════════════════════════
 # HALAMAN 5 — Prediksi Interaktif
