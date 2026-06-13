@@ -1,0 +1,28 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Export script & generated images (not needed for Streamlit Cloud)
+export_images.py
+C1_*.png
+C2_*.png
+C3_*.png
+C4_*.png
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
